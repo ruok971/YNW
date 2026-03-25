@@ -629,3 +629,4 @@ end)
 local Tab2 = CreateTab("ตั้งค่า", "⚙️")
 CreateButton(Tab2, "Rejoin Game", function()
 	game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
+end) -- กว่าทำได้ถ้าไม่อีกกูท้อ
