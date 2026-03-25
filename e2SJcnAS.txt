@@ -1,0 +1,631 @@
+-- ======================================================================================
+-- 🔥 MODERN DRAGGABLE UI (FIXED TABS) 🔥
+-- ======================================================================================
+
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+-- ป้องกันการรันซ้ำ
+if PlayerGui:FindFirstChild("ModernStudio_UI") then
+	PlayerGui:FindFirstChild("ModernStudio_UI"):Destroy()
+end
+
+-- ======================================================================================
+-- CONFIGURATION & THEME
+-- ======================================================================================
+local Theme = {
+	Background = Color3.fromRGB(15, 15, 15),
+	Secondary = Color3.fromRGB(25, 25, 25),
+	Accent = Color3.fromRGB(0, 255, 100), -- สีเขียวหลัก
+	DarkAccent = Color3.fromRGB(0, 50, 20),
+	Text = Color3.fromRGB(255, 255, 255),
+	DisabledText = Color3.fromRGB(150, 150, 150),
+	Black = Color3.fromRGB(0, 0, 0),
+	CornerRadius = UDim.new(0, 8),
+	Font_Bold = Enum.Font.GothamBold,
+	Font_Reg = Enum.Font.Gotham,
+}
+
+local SongId = "rbxassetid://6875023586"
+local UI_Size = UDim2.new(0, 550, 0, 350)
+
+-- Variable สำหรับเก็บ State
+local ui_visible = false
+local current_tab = nil
+local all_tabs = {}
+local active_toggles = {} -- เก็บ state ของปุ่มเปิดปิด
+
+-- ======================================================================================
+-- UTIL FUNCTIONS (ฟังก์ชันช่วยสร้าง UI)
+-- ======================================================================================
+local function MakeWavyAccent(parent)
+	local uiGradient = Instance.new("UIGradient")
+	uiGradient.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Theme.Black),
+		ColorSequenceKeypoint.new(0.5, Theme.Accent),
+		ColorSequenceKeypoint.new(1, Theme.Black)
+	}
+	uiGradient.Parent = parent
+	
+	-- Animate gradient (Optional - เพิ่มความสวยงามแบบขยับได้)
+	task.spawn(function()
+		while parent.Parent do
+			TweenService:Create(uiGradient, TweenInfo.new(2, Enum.EasingStyle.Linear, Enum.EasingDirection.InOut, -1), {Offset = Vector2.new(1, 0)}):Play()
+			task.wait(2)
+			uiGradient.Offset = Vector2.new(-1, 0)
+		end
+	end)
+end
+
+local function PlayClickSound()
+	local sound = Instance.new("Sound")
+	sound.SoundId = SongId
+	sound.Volume = 0.5
+	sound.Parent = game.Workspace
+	sound:Play()
+	sound.Ended:Connect(function() sound:Destroy() end)
+end
+
+-- ฟังก์ชันทำให้ GUI ลากได้ (แบบลื่นไหล)
+local function MakeDraggable(guiObject)
+	local dragging, dragInput, dragStart, startPos
+
+	local function update(input)
+		local delta = input.Position - dragStart
+		local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		-- ใช้ Tween เพื่อความลื่นไหล
+		TweenService:Create(guiObject, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = newPos}):Play()
+	end
+
+	guiObject.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = guiObject.Position
+			
+			input.Changed:Connect(function()
+				if input.UserInputState == Enum.UserInputState.End then
+					dragging = false
+				end
+			end)
+		end
+	end)
+
+	guiObject.InputChanged:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			dragInput = input
+		end
+	end)
+
+	UserInputService.InputChanged:Connect(function(input)
+		if input == dragInput and dragging then
+			update(input)
+		end
+	end)
+end
+
+-- ======================================================================================
+-- MAIN UI ELEMENTS CREATION
+-- ======================================================================================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "ModernStudio_UI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ScreenGui.Parent = PlayerGui
+
+-- 1. ปุ่มเปิด/ปิดหลัก (ลากได้)
+local MainToggleButton = Instance.new("TextButton")
+MainToggleButton.Name = "MainToggleButton"
+MainToggleButton.Size = UDim2.new(0, 110, 0, 45)
+MainToggleButton.Position = UDim2.new(0, 20, 0, 20) -- ตำแหน่งเริ่มต้น
+MainToggleButton.BackgroundColor3 = Theme.Background
+MainToggleButton.Text = "MENU ⛩️"
+MainToggleButton.TextColor3 = Theme.Accent
+MainToggleButton.Font = Theme.Font_Bold
+MainToggleButton.TextSize = 16
+MainToggleButton.BorderSizePixel = 0
+MainToggleButton.ZIndex = 10
+MainToggleButton.Parent = ScreenGui
+
+Instance.new("UICorner", MainToggleButton).CornerRadius = UDim.new(0, 10)
+local toggleBtnStroke = Instance.new("UIStroke", MainToggleButton)
+toggleBtnStroke.Color = Theme.Accent
+toggleBtnStroke.Thickness = 2
+toggleBtnStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+-- ทำให้ปุ่มเปิด/ปิดลากได้
+MakeDraggable(MainToggleButton)
+
+-- 2. เฟรมหลัก (MainFrame)
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UI_Size
+MainFrame.Position = UDim2.new(0.5, -UI_Size.X.Offset/2, 0.5, -UI_Size.Y.Offset/2)
+MainFrame.BackgroundColor3 = Theme.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+
+MakeDraggable(MainFrame) -- ทำให้ Frame หลักลากได้ที่ฉากหลัง
+Instance.new("UICorner", MainFrame).CornerRadius = Theme.CornerRadius
+local mainStroke = Instance.new("UIStroke", MainFrame)
+mainStroke.Color = Theme.Accent
+mainStroke.Thickness = 2
+
+-- แถบสีด้านบนสุดเพื่อความสวยงาม
+local TopBorderLine = Instance.new("Frame")
+TopBorderLine.Size = UDim2.new(1, 0, 0, 3)
+TopBorderLine.BorderSizePixel = 0
+TopBorderLine.Parent = MainFrame
+MakeWavyAccent(TopBorderLine)
+
+-- Title
+local TitleLabel = Instance.new("TextLabel")
+TitleLabel.Text = "MODERN HUB ⛩️"
+TitleLabel.Size = UDim2.new(0, 200, 0, 40)
+TitleLabel.Position = UDim2.new(0, 15, 0, 5)
+TitleLabel.BackgroundTransparency = 1
+TitleLabel.TextColor3 = Theme.Text
+TitleLabel.Font = Theme.Font_Bold
+TitleLabel.TextSize = 20
+TitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+TitleLabel.Parent = MainFrame
+
+-- ปุ่มปิดขวาบน (X)
+local CloseIconInfo = Instance.new("TextButton")
+CloseIconInfo.Name = "CloseIcon"
+CloseIconInfo.Text = "×"
+CloseIconInfo.Size = UDim2.new(0, 30, 0, 30)
+CloseIconInfo.Position = UDim2.new(1, -40, 0, 10)
+CloseIconInfo.BackgroundTransparency = 1
+CloseIconInfo.TextColor3 = Theme.DisabledText
+CloseIconInfo.Font = Enum.Font.GothamMedium
+CloseIconInfo.TextSize = 30
+CloseIconInfo.Parent = MainFrame
+
+-- ปุ่มเปลี่ยนสี (Color Picker)
+local ColorPickerBtn = Instance.new("TextButton")
+ColorPickerBtn.Text = "🎨"
+ColorPickerBtn.Size = UDim2.new(0, 30, 0, 30)
+ColorPickerBtn.Position = UDim2.new(1, -80, 0, 10)
+ColorPickerBtn.BackgroundTransparency = 1
+ColorPickerBtn.TextColor3 = Theme.Text
+ColorPickerBtn.Font = Theme.Font_Reg
+ColorPickerBtn.TextSize = 20
+ColorPickerBtn.Parent = MainFrame
+
+-- container สำหรับเนื้อหา (ด้านขวา)
+local ContentContainer = Instance.new("Frame")
+ContentContainer.Name = "ContentContainer"
+ContentContainer.Size = UDim2.new(1, -140, 1, -60)
+ContentContainer.Position = UDim2.new(0, 130, 0, 50)
+ContentContainer.BackgroundTransparency = 1
+ContentContainer.Parent = MainFrame
+
+-- container สำหรับแท็บเมนู (ด้านซ้าย)
+local TabMenuContainer = Instance.new("ScrollingFrame")
+TabMenuContainer.Name = "TabMenu"
+TabMenuContainer.Size = UDim2.new(0, 110, 1, -60)
+TabMenuContainer.Position = UDim2.new(0, 10, 0, 50)
+TabMenuContainer.BackgroundColor3 = Theme.Secondary
+TabMenuContainer.BorderSizePixel = 0
+TabMenuContainer.ScrollBarThickness = 2
+TabMenuContainer.ScrollBarImageColor3 = Theme.Accent
+TabMenuContainer.Parent = MainFrame
+Instance.new("UICorner", TabMenuContainer)
+
+local tabLayout = Instance.new("UIListLayout", TabMenuContainer)
+tabLayout.Padding = UDim.new(0, 5)
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Instance.new("UIPadding", TabMenuContainer).PaddingTop = UDim.new(0, 5)
+
+-- ======================================================================================
+-- CORE LOGIC (ระบบเปิดปิด, สลับแท็บ)
+-- ======================================================================================
+
+-- ฟังก์ชันสลับการแสดงผล UI หลัก
+local function ToggleMainUI()
+	ui_visible = not ui_visible
+	PlayClickSound()
+	
+	if ui_visible then
+		-- Animation เปิด
+		MainFrame.Visible = true
+		MainFrame.Size = UDim2.new(0,0,0,0) -- เริ่มจากจุดเล็กๆ
+		MainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+		TweenService:Create(MainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+			Size = UI_Size,
+			Position = UDim2.new(0.5, -UI_Size.X.Offset/2, 0.5, -UI_Size.Y.Offset/2)
+		}):Play()
+		
+		MainToggleButton.Text = "CLOSE ❌"
+		MainToggleButton.TextColor3 = Color3.fromRGB(255, 50, 50)
+		toggleBtnStroke.Color = Color3.fromRGB(255, 50, 50)
+	else
+		-- Animation ปิด
+		local tween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+			Size = UDim2.new(0,0,0,0),
+			Position = UDim2.new(0.5, 0, 0.5, 0)
+		})
+		tween:Play()
+		tween.Completed:Connect(function()
+			if not ui_visible then MainFrame.Visible = false end
+		end)
+
+		MainToggleButton.Text = "MENU ⛩️"
+		MainToggleButton.TextColor3 = Theme.Accent
+		toggleBtnStroke.Color = Theme.Accent
+	end
+end
+
+MainToggleButton.MouseButton1Click:Connect(ToggleMainUI)
+CloseIconInfo.MouseButton1Click:Connect(ToggleMainUI)
+
+-- [FIXED] ฟังก์ชันสลับแท็บ แก้ไขบัคปุ่มไม่ขึ้น
+local function SelectTab(tabName)
+	if current_tab == tabName then return end -- กดแท็บเดิมไม่ต้องทำอะไร
+	PlayClickSound()
+	
+	current_tab = tabName
+	
+	for name, data in pairs(all_tabs) do
+		if name == tabName then
+			-- แสดงผลแท็บที่เลือก
+			data.Frame.Visible = true
+			-- เปลี่ยนสีปุ่มเมนูให้ไฮไลท์
+			TweenService:Create(data.ActionButton, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent, TextColor3 = Theme.Black}):Play()
+		else
+			-- ซ่อนแท็บอื่น
+			data.Frame.Visible = false
+			-- เปลี่ยนสีปุ่มเมนูกลับเป็นปกติ
+			TweenService:Create(data.ActionButton, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Background, TextColor3 = Theme.Text}):Play()
+		end
+	end
+end
+
+-- ======================================================================================
+-- UI CREATION KIT (ฟังก์ชันสร้างปุ่มรูปแบบต่างๆ)
+-- ======================================================================================
+
+-- 1. ฟังก์ชันสร้าง แท็บใหม่
+local function CreateTab(name, icon)
+	local tabBtn = Instance.new("TextButton")
+	tabBtn.Name = name.."_TabBtn"
+	tabBtn.Size = UDim2.new(0.9, 0, 0, 35)
+	tabBtn.BackgroundColor3 = Theme.Background
+	tabBtn.Text = icon.." "..name
+	tabBtn.TextColor3 = Theme.Text
+	tabBtn.Font = Theme.Font_Reg
+	tabBtn.TextSize = 14
+	tabBtn.BorderSizePixel = 0
+	tabBtn.Parent = TabMenuContainer
+	Instance.new("UICorner", tabBtn)
+	
+	-- แสงขอบปุ่มแท็บ
+	local stroke = Instance.new("UIStroke", tabBtn)
+	stroke.Color = Theme.Accent
+	stroke.Thickness = 1
+	stroke.Transparency = 0.8
+	
+	local tabFrame = Instance.new("ScrollingFrame")
+	tabFrame.Name = name.."_Content"
+	tabFrame.Size = UDim2.new(1, 0, 1, 0)
+	tabFrame.BackgroundTransparency = 1
+	tabFrame.BorderSizePixel = 0
+	tabFrame.ScrollBarThickness = 3
+	tabFrame.ScrollBarImageColor3 = Theme.Accent
+	tabFrame.Visible = false -- ซ่อนไว้ก่อน
+	tabFrame.Parent = ContentContainer
+	
+	local layout = Instance.new("UIListLayout", tabFrame)
+	layout.Padding = UDim.new(0, 8)
+	layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	Instance.new("UIPadding", tabFrame).PaddingTop = UDim.new(0, 5)
+	
+	tabBtn.MouseButton1Click:Connect(function()
+		SelectTab(name)
+	end)
+	
+	-- เก็บข้อมูลแท็บ
+	all_tabs[name] = {
+		Frame = tabFrame,
+		ActionButton = tabBtn
+	}
+	
+	-- ถ้าเป็นแท็บแรก ให้เลือกอัตโนมัติ
+	if current_tab == nil then
+		task.spawn(function()
+			task.wait(0.1) -- รอ UI สร้างเสร็จแป๊บระง
+			SelectTab(name)
+		end)
+	end
+	
+	return tabFrame
+end
+
+-- 2. ฟังก์ชันสร้าง ปุ่มกดทั่วไป (Callback)
+local function CreateButton(parent, text, callback)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0.95, 0, 0, 40)
+	btn.BackgroundColor3 = Theme.Secondary
+	btn.Text = text
+	btn.TextColor3 = Theme.Text
+	btn.Font = Theme.Font_Reg
+	btn.TextSize = 16
+	btn.BorderSizePixel = 0
+	btn.Parent = parent
+	Instance.new("UICorner", btn)
+	
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = Theme.Accent
+	stroke.Thickness = 1
+	stroke.Transparency = 0.5
+	
+	-- Hover Effect
+	btn.MouseEnter:Connect(function()
+		TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0}):Play()
+		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.DarkAccent}):Play()
+	end)
+	btn.MouseLeave:Connect(function()
+		TweenService:Create(stroke, TweenInfo.new(0.2), {Transparency = 0.5}):Play()
+		TweenService:Create(btn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Secondary}):Play()
+	end)
+	
+	btn.MouseButton1Click:Connect(function()
+		PlayClickSound()
+		-- Animation กด
+		local circle = Instance.new("Frame") -- Simple ripple effect
+		circle.Size = UDim2.new(0,0,0,0)
+		circle.Position = UDim2.new(0.5,0,0.5,0)
+		circle.BackgroundColor3 = Theme.Accent
+		circle.BackgroundTransparency = 0.5
+		circle.Parent = btn
+		Instance.new("UICorner", circle).CornerRadius = UDim.new(1,0)
+		TweenService:Create(circle, TweenInfo.new(0.3), {Size = UDim2.new(1,0,1,0), Position = UDim2.new(0,0,0,0), BackgroundTransparency = 1}):Play()
+		task.delay(0.3, function() circle:Destroy() end)
+		
+		callback()
+	end)
+end
+
+-- 3. ฟังก์ชันสร้าง ปุ่มเปิด/ปิด (Toggle) สไตล์สวยงาม
+local function CreateToggle(parent, text, defaultState, callback)
+	active_toggles[text] = defaultState
+	
+	local toggleFrame = Instance.new("Frame")
+	toggleFrame.Size = UDim2.new(0.95, 0, 0, 45)
+	toggleFrame.BackgroundColor3 = Theme.Secondary
+	toggleFrame.BorderSizePixel = 0
+	toggleFrame.Parent = parent
+	Instance.new("UICorner", toggleFrame)
+	
+	local label = Instance.new("TextLabel")
+	label.Text = text
+	label.Size = UDim2.new(1, -70, 1, 0)
+	label.Position = UDim2.new(0, 15, 0, 0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Theme.Text
+	label.Font = Theme.Font_Reg
+	label.TextSize = 16
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = toggleFrame
+	
+	-- ดีไซน์ปุ่มสวิตช์
+	local switchBg = Instance.new("TextButton")
+	switchBg.Name = "Switch"
+	switchBg.Text = ""
+	switchBg.Size = UDim2.new(0, 50, 0, 26)
+	switchBg.Position = UDim2.new(1, -60, 0.5, -13)
+	switchBg.BackgroundColor3 = defaultState and Theme.Accent or Theme.Black
+	switchBg.BorderSizePixel = 0
+	switchBg.Parent = toggleFrame
+	Instance.new("UICorner", switchBg).CornerRadius = UDim.new(1, 0)
+	
+	local switchStroke = Instance.new("UIStroke", switchBg)
+	switchStroke.Color = Theme.Accent
+	switchStroke.Thickness = 1
+	
+	local slider = Instance.new("Frame")
+	slider.Name = "Slider"
+	slider.Size = UDim2.new(0, 20, 0, 20)
+	slider.Position = defaultState and UDim2.new(1, -23, 0.5, -10) or UDim2.new(0, 3, 0.5, -10)
+	slider.BackgroundColor3 = defaultState and Theme.Black or Theme.DisabledText
+	slider.BorderSizePixel = 0
+	slider.Parent = switchBg
+	Instance.new("UICorner", slider).CornerRadius = UDim.new(1, 0)
+	
+	local function UpdateVisual(state)
+		if state then
+			TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent}):Play()
+			TweenService:Create(slider, TweenInfo.new(0.2), {Position = UDim2.new(1, -23, 0.5, -10), BackgroundColor3 = Theme.Black}):Play()
+		else
+			TweenService:Create(switchBg, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Black}):Play()
+			TweenService:Create(slider, TweenInfo.new(0.2), {Position = UDim2.new(0, 3, 0.5, -10), BackgroundColor3 = Theme.DisabledText}):Play()
+		end
+	end
+	
+	switchBg.MouseButton1Click:Connect(function()
+		PlayClickSound()
+		active_toggles[text] = not active_toggles[text]
+		local newState = active_toggles[text]
+		UpdateVisual(newState)
+		callback(newState)
+	end)
+end
+
+-- ======================================================================================
+-- สร้างเนื้อหาตามคำขอ
+-- ======================================================================================
+
+-- สีที่มีให้เลือกเปลี่ยน
+local ColorPalette = {
+	Color3.fromRGB(0, 255, 100), -- Green (Default)
+	Color3.fromRGB(0, 200, 255), -- Blue
+	Color3.fromRGB(255, 50, 50),  -- Red
+	Color3.fromRGB(255, 200, 0),  -- Yellow
+	Color3.fromRGB(200, 100, 255) -- Purple
+}
+local colorIndex = 1
+
+-- ฟังก์ชันเปลี่ยนสี Theme
+ColorPickerBtn.MouseButton1Click:Connect(function()
+	PlayClickSound()
+	colorIndex = colorIndex + 1
+	if colorIndex > #ColorPalette then colorIndex = 1 end
+	local newColor = ColorPalette[colorIndex]
+	
+	Theme.Accent = newColor
+	
+	-- อัปเดตสีองค์ประกอบต่างๆ
+	mainStroke.Color = newColor
+	TitleLabel.TextColor3 = newColor -- เปลี่ยนสี Title ตาม
+	TabMenuContainer.ScrollBarImageColor3 = newColor
+	
+	if not ui_visible then
+		toggleBtnStroke.Color = newColor
+		MainToggleButton.TextColor3 = newColor
+	end
+	
+	-- อัปเดตสีในแท็บและปุ่มต่างๆ (ต้อง Loop)
+	for _, data in pairs(all_tabs) do
+		data.ActionButton.FindFirstChildOfClass("UIStroke").Color = newColor
+		if data.ActionButton.BackgroundColor3 ~= Theme.Background then -- ถ้าเป็นแท็บที่เลือกอยู่
+			data.ActionButton.BackgroundColor3 = newColor
+		end
+		
+		-- Loop ดูปุ่มข้างใน ScrollFrame
+		for _, item in pairs(data.Frame:GetChildren()) do
+			if item:IsA("TextButton") and item.Name ~= "Switch" then -- ปุ่มกด
+				item.FindFirstChildOfClass("UIStroke").Color = newColor
+			elseif item:IsA("Frame") and item:FindFirstChild("Switch") then -- Toggle
+				item.FindFirstChild("Switch").FindFirstChildOfClass("UIStroke").Color = newColor
+				if active_toggles[item:FindFirstChildOfClass("TextLabel").Text] then
+					item.FindFirstChild("Switch").BackgroundColor3 = newColor
+				end
+			end
+		end
+	end
+end)
+
+
+-- ⛩️ แท็บหลัก
+local Tab1 = CreateTab("หลัก", "⛩️")
+
+CreateButton(Tab1, "ฟามเวล⭐", function()
+	print("เริ่มฟามเวล...")
+	-- ฟังก์ชันวาป
+	local locs = {
+		CFrame.new(1155, 7, -305), CFrame.new(194, 8, -398), CFrame.new(380, 5, -384),
+		CFrame.new(310, 3, -17), CFrame.new(513, 3, 66), CFrame.new(383, 6, -174)
+	}
+	-- สุ่มวาปไป 1 ที่ (ตัวอย่าง)
+	Player.Character.HumanoidRootPart.CFrame = locs[math.random(1, #locs)]
+	
+	-- กด ProximityPrompt ทุกที่
+	for _,v in pairs(game.Workspace:GetDescendants()) do
+		if v:IsA("ProximityPrompt") then
+			fireproximityprompt(v)
+		end
+	end
+end)
+
+CreateToggle(Tab1, "วาปไปอาบน้ำ💧", false, function(state)
+	if state then
+		print("ไปอาบน้ำ + โดด")
+		_G.BathLoop = true
+		Player.Character.HumanoidRootPart.CFrame = CFrame.new(263, 7, -35)
+		task.spawn(function()
+			while _G.BathLoop do
+				Player.Character.Humanoid.Jump = true
+				task.wait(0.2)
+			end
+		end)
+	else
+		print("หยุดอาบน้ำ")
+		_G.BathLoop = false
+	end
+end)
+
+-- [[ ฟังก์ชันสำหรับ Stamina ไร้ขีดจำกัด ]]
+-- ใส่ไว้ในส่วนของตัวแปรควบคุมด้านบน
+local InfiniteStamina = false
+
+-- [[ ตัวอย่างปุ่มสำหรับนำไปเพิ่มเอง ]]
+CreateToggle(Tab1, "Stamina ไร้ขีดจำกัด ⚡", function(state)
+    InfiniteStamina = state
+    
+    if state then
+        task.spawn(function()
+            -- หาโฟลเดอร์ leaderstats ของผู้เล่น
+            local stats = Player:FindFirstChild("leaderstats")
+            if stats then
+                local maxStam = stats:FindFirstChild("MaxStamina")
+                local curStam = stats:FindFirstChild("Stamina")
+                
+                while InfiniteStamina do
+                    -- ปรับให้ไร้ขีดจำกัดทั้ง 2 ไฟล์
+                    if maxStam then maxStam.Value = 999999 end
+                    if curStam then curStam.Value = 999999 end
+                    
+                    task.wait(0.1) -- ล็อคค่าไว้ทุก 0.1 วินาที
+                end
+                
+                -- เมื่อปิด ให้กลับมาเป็นค่าปกติ (หรือค่าที่คุณต้องการ)
+                if maxStam then maxStam.Value = 100 end
+                if curStam then curStam.Value = 100 end
+            end
+        end)
+    end
+end)
+
+CreateToggle(Tab1, "วาปไปฮีลเลือด🩸", false, function(state)
+	if state then
+		Player.Character.HumanoidRootPart.CFrame = CFrame.new(248, 7, -15)
+	else
+		print("กลับที่เดิม (ต้องใส่พิกัดเอาเอง)")
+	end
+end)
+
+CreateToggle(Tab1, "ออโต้ฮีล (เลือด20)🩸", false, function(state)
+	_G.AutoHeal = state
+	if state then
+		task.spawn(function()
+			while _G.AutoHeal do
+				if Player.Character.Humanoid.Health <= 20 then
+					Player.Character.HumanoidRootPart.CFrame = CFrame.new(248, 7, -15)
+					repeat task.wait(0.5) until Player.Character.Humanoid.Health >= 100 or not _G.AutoHeal
+				end
+				task.wait(1)
+			end
+		end)
+	end
+end)
+
+CreateToggle(Tab1, "วาปไปขี้💩", false, function(state)
+	if state then
+		_G.PooLoop = true
+		Player.Character.HumanoidRootPart.CFrame = CFrame.new(263, 7, -51)
+		task.spawn(function()
+			while _G.PooLoop do
+				Player.Character.Humanoid.Jump = true
+				task.wait(0.2)
+			end
+		end)
+	else
+		_G.PooLoop = false
+	end
+end)
+
+CreateButton(Tab1, "วาปไปเอาข้าว🍜", function()
+	Player.Character.HumanoidRootPart.CFrame = CFrame.new(90, 3, -91)
+end)
+
+-- ⚙️ แท็บตั้งค่า (ตัวอย่างเพิ่มเติม)
+local Tab2 = CreateTab("ตั้งค่า", "⚙️")
+CreateButton(Tab2, "Rejoin Game", function()
+	game:GetService("TeleportService") : Teleport(game.PlaceId, Player)
