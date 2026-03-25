@@ -555,33 +555,35 @@ end)
 -- ใส่ไว้ในส่วนของตัวแปรควบคุมด้านบน
 local InfiniteStamina = false
 
--- [[ ตัวอย่างปุ่มสำหรับนำไปเพิ่มเอง ]]
-CreateToggle(Tab1, "Stamina ไร้ขีดจำกัด ⚡", function(state)
-    InfiniteStamina = state
+-- [[ 1. ส่วนปุ่ม Toggle (แก้ไข Logic ใหม่) ]]
+CreateToggle(Tab1, "Stamina ไร้ขีดจำกัด ⚡", false, function(state)
+    _G.InfStamina = state -- ใช้ _G เพื่อให้มั่นใจว่าค่าถูกเปลี่ยนจริง
     
     if state then
         task.spawn(function()
-            -- หาโฟลเดอร์ leaderstats ของผู้เล่น
-            local stats = Player:FindFirstChild("leaderstats")
-            if stats then
-                local maxStam = stats:FindFirstChild("MaxStamina")
-                local curStam = stats:FindFirstChild("Stamina")
-                
-                while InfiniteStamina do
-                    -- ปรับให้ไร้ขีดจำกัดทั้ง 2 ไฟล์
+            -- ใช้ pcall เพื่อป้องกันสคริปต์พังถ้าหาไฟล์ไม่เจอ
+            while _G.InfStamina do
+                local stats = Player:FindFirstChild("leaderstats")
+                if stats then
+                    local maxStam = stats:FindFirstChild("MaxStamina")
+                    local curStam = stats:FindFirstChild("Stamina")
+                    
                     if maxStam then maxStam.Value = 999999 end
                     if curStam then curStam.Value = 999999 end
-                    
-                    task.wait(0.1) -- ล็อคค่าไว้ทุก 0.1 วินาที
                 end
-                
-                -- เมื่อปิด ให้กลับมาเป็นค่าปกติ (หรือค่าที่คุณต้องการ)
-                if maxStam then maxStam.Value = 100 end
-                if curStam then curStam.Value = 100 end
+                task.wait(0.1)
+            end
+            
+            -- เมื่อปิด (state = false) ให้คืนค่าปกติ
+            local stats = Player:FindFirstChild("leaderstats")
+            if stats then
+                if stats:FindFirstChild("MaxStamina") then stats.MaxStamina.Value = 100 end
+                if stats:FindFirstChild("Stamina") then stats.Stamina.Value = 100 end
             end
         end)
     end
 end)
+
 
 CreateToggle(Tab1, "วาปไปฮีลเลือด🩸", false, function(state)
 	if state then
