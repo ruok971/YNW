@@ -635,67 +635,50 @@ end) -- กว่าทำได้ถ้าไม่อีกกูท้อ
 
 local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
 CreateToggle(Tab3, "ลดแล็ค🥀", false, function(state)
--- [[ 1. ส่วนของตัวแปรควบคุม (วางไว้ด้านบนสุดของสคริปต์) ]]
+-- [[ 1. กุจะบ้า (แก้ไขครั้งที่5000) ]]
 local Lighting = game:GetService("Lighting")
 local Terrain = game.Workspace:WaitForChild("Terrain")
 local FPSBoosterActive = false
 
--- [[ 2. ฟังก์ชันหลักสำหรับลดกราฟิก ]]
+-- [[ 2. ฟังก์ชันลดกราฟิก (วางไว้นอก Toggle เช่นกัน) ]]
 local function OptimizeGraphics(state)
-    -- ปรับ Lighting & Terrain
-    Lighting.GlobalShadows = not state
-    Lighting.FogEnd = state and 9e9 or 10000
-    Lighting.Brightness = state and 1 or 2
-    
-    for _, v in pairs(Lighting:GetDescendants()) do
-        if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") then
-            v.Enabled = not state
-        end
-    end
-
-    Terrain.WaterWaveSize = state and 0 or 0.15
-    Terrain.WaterWaveSpeed = state and 0 or 1
-    Terrain.WaterReflectance = state and 0 or 1
-    Terrain.WaterTransparency = state and 0 or 0
-    
-    -- ปรับ Rendering Quality (หมายเหตุ: settings() อาจใช้งานไม่ได้ใน Executor บางตัว)
     pcall(function()
+        Lighting.GlobalShadows = not state
+        Lighting.FogEnd = state and 9e9 or 10000
+        for _, v in pairs(Lighting:GetDescendants()) do
+            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") then
+                v.Enabled = not state
+            end
+        end
+        Terrain.WaterWaveSize = state and 0 or 0.15
+        Terrain.WaterWaveSpeed = state and 0 or 1
         settings().Rendering.QualityLevel = state and 1 or 0
     end)
 end
 
--- [[ 3. การสร้าง UI ]]
-local Tab2 = CreateTab("ตั้งค่า", "⚙️")
-local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
-
-CreateButton(Tab2, "Rejoin Game", function()
-    game:GetService("TeleportService"):Teleport(game.PlaceId, game:GetService("Players").LocalPlayer)
-end)
-
-CreateToggle(Tab3, "ลดแล็ค 🚀", false, function(state)
+-- [[ 3. ส่วนที่คุณต้องเอาไปใส่ใน CreateToggle ที่สร้างไว้แล้ว ]]
+function(state)
     FPSBoosterActive = state
     OptimizeGraphics(state)
     
-    -- ทำความสะอาด Object ที่กินสเปค (Particle/Trail)
     if state then
         task.spawn(function()
             while FPSBoosterActive do
                 for _, v in pairs(game.Workspace:GetDescendants()) do
-                    if not FPSBoosterActive then break end -- หยุดการทำงานทันทีถ้าปิด Toggle
-                    
+                    if not FPSBoosterActive then break end 
                     if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
                         v.Enabled = false
                     end
                 end
-                task.wait(10) -- เพิ่มเวลาเป็น 10 วินาทีเพื่อลดภาระ CPU
+                task.wait(10)
             end
         end)
     else
-        -- ถ้าปิดโหมดลดแล็ค ให้เปิด Particle คืนมา (Optional)
+        -- เปิดคืนค่าเดิมเมื่อปิด
         for _, v in pairs(game.Workspace:GetDescendants()) do
             if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
                 v.Enabled = true
             end
         end
     end
-end)
+end
