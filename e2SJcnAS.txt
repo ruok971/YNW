@@ -681,4 +681,4 @@ function(state)
             end
         end
     end
-end
+end) -- ลืมปิดท้ายเชื่ยเอ้ย
