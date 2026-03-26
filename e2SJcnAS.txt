@@ -632,3 +632,65 @@ local Tab2 = CreateTab("ตั้งค่า", "⚙️")
 CreateButton(Tab2, "Rejoin Game", function()
 	game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
 end) -- กว่าทำได้ถ้าไม่อีกกูท้อ
+
+local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
+CreateToggle(Tab3, "ลดแล็ค🥀", false, function(state)
+-- [[ 1. ส่วนของตัวแปรควบคุม (วางไว้ด้านบนสคริปต์) ]]
+local FPSBoosterActive = false
+local Lighting = game:GetService("Lighting")
+local Terrain = game.Workspace:WaitForChild("Terrain")
+
+-- [[ 2. ฟังก์ชันหลักสำหรับลดกราฟิก ]]
+local function OptimizeGraphics(state)
+    if state then
+        -- ตั้งค่า Lighting ให้กินทรัพยากรน้อยที่สุด
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 9e9
+        Lighting.Brightness = 1
+        for _, v in pairs(Lighting:GetDescendants()) do
+            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") then
+                v.Enabled = false
+            end
+        end
+        -- ลดรายละเอียด Terrain
+        Terrain.WaterWaveSize = 0
+        Terrain.WaterWaveSpeed = 0
+        Terrain.WaterReflectance = 0
+        Terrain.WaterTransparency = 0
+        
+        -- ปรับ Rendering Quality (ถ้าทำได้)
+        settings().Rendering.QualityLevel = 1
+    else
+        -- คืนค่าเดิม (ตัวอย่างค่ามาตรฐาน)
+        Lighting.GlobalShadows = true
+        Lighting.FogEnd = 10000
+        for _, v in pairs(Lighting:GetDescendants()) do
+            if v:IsA("PostEffect") or v:IsA("BloomEffect") or v:IsA("BlurEffect") or v:IsA("SunRaysEffect") then
+                v.Enabled = true
+            end
+        end
+        Terrain.WaterWaveSize = 0.15
+        Terrain.WaterWaveSpeed = 1
+        settings().Rendering.QualityLevel = 0 -- Auto
+    end
+end
+
+-- [[ 3. ตัวอย่างปุ่มสำหรับนำไปเพิ่มเองใน UI ]]
+CreateToggle(Tab2, "FPS Booster 🚀", false, function(state)
+    FPSBoosterActive = state
+    OptimizeGraphics(state)
+    
+    -- ทำความสะอาดเอฟเฟกต์ที่เกิดขึ้นใหม่เรื่อยๆ
+    if state then
+        task.spawn(function()
+            while FPSBoosterActive do
+                for _, v in pairs(game.Workspace:GetDescendants()) do
+                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
+                        v.Enabled = false
+                    elseif v:IsA("Decal") or v:IsA("Texture") then
+                        -- Optional: ปิด Texture เพื่อเพิ่ม FPS สูงสุด
+                        -- v.Transparency = 1 
+                    end
+                end
+                task.wait(5) -- เช็คทุกๆ 5 วินาทีเพื่อไม่ให้กินสเปคเอง
+            end)
