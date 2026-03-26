@@ -635,12 +635,11 @@ end) -- กว่าทำได้ถ้าไม่อีกกูท้อ
 
 local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
 CreateToggle(Tab3, "ลดแล็ค🥀", false, function(state)
--- [[ 1. กุจะบ้า (แก้ไขครั้งที่5000) ]]
+-- [[ 1. ประกาศตัวแปรและฟังก์ชันไว้ด้านบนสุด ]]
 local Lighting = game:GetService("Lighting")
 local Terrain = game.Workspace:WaitForChild("Terrain")
 local FPSBoosterActive = false
 
--- [[ 2. ฟังก์ชันลดกราฟิก (วางไว้นอก Toggle เช่นกัน) ]]
 local function OptimizeGraphics(state)
     pcall(function()
         Lighting.GlobalShadows = not state
@@ -656,8 +655,10 @@ local function OptimizeGraphics(state)
     end)
 end
 
--- [[ 3. ส่วนที่คุณต้องเอาไปใส่ใน CreateToggle ที่สร้างไว้แล้ว ]]
-function(state)
+-- [[ 2. ส่วนของ UI ]]
+local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
+
+CreateToggle(Tab3, "ลดแล็ค🥀", false, function(state)
     FPSBoosterActive = state
     OptimizeGraphics(state)
     
@@ -674,11 +675,11 @@ function(state)
             end
         end)
     else
-        -- เปิดคืนค่าเดิมเมื่อปิด
+        -- คืนค่า Particle เมื่อปิด
         for _, v in pairs(game.Workspace:GetDescendants()) do
             if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
                 v.Enabled = true
             end
         end
     end
-end) -- ลืมปิดท้ายเชื่ยเอ้ย
+end) -- ปิดท้าย CreateToggle
