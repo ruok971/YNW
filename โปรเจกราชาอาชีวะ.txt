@@ -133,8 +133,8 @@ local function buildGUI()
     W:Tag({Title = "v1.6 Premium", Icon = "bird", Color = Color3.fromHex("#30ff6a"), Radius = 13})
 
     -- สร้าง Tab
-    local MainTab = W:Tab({ Title = "ฟาร์ม & เคลื่อนที่", Icon = "rbxassetid://10734949856" })
-    local MiscTab = W:Tab({ Title = "ฟังก์ชันเสริม", Icon = "rbxassetid://10734949856" })
+    local MainTab = W:Tab({ Title = "Farm money", Icon = "rbxassetid://10734949856" })
+    local MiscTab = W:Tab({ Title = "Setting", Icon = "rbxassetid://10734949856" })
 
     ----------------------------------------------
     -- ส่วนของ MainTab (Farm)
@@ -142,7 +142,7 @@ local function buildGUI()
     
     -- ปุ่มรันสคริปต์ภายนอก (Farm v 1.6)
     MainTab:Button({
-        Title = "Farm v 1.6 (Pastebin)",
+        Title = "Farm v 1.6 ",
         Callback = function()
             WindUI:Notify({Title = "Craig HUB", Content = "กำลังรันสคริปต์ภายนอก...", Duration = 2})
             pcall(function() loadstring(game:HttpGet("https://pastebin.com/raw/NpttDSCJ"))() end)
@@ -151,7 +151,7 @@ local function buildGUI()
 
     -- Toggle เปิดระบบฟาร์มก่อสร้าง (บิน + ปุ่มแดง)
     MainTab:Toggle({
-        Title = "เปิดระบบฟาร์มก่อสร้าง (Auto Fly & Hold)",
+        Title = "Farm money💰",
         Value = false,
         Callback = function(v)
             autoFarmActive = v
@@ -171,16 +171,16 @@ local function buildGUI()
     ----------------------------------------------
 
     MiscTab:Toggle({
-        Title = "Action AFK (Jump 15 min)",
+        Title = "Action AFK",
         Value = false,
         Callback = function(v)
             afkActive = v
-            WindUI:Notify({Title = "AFK", Content = v and "เปิดโหมดกันหลุด" or "ปิดโหมดกันหลุด", Duration = 2})
+            WindUI:Notify({Title = "AFK", Content = v and "เปิดโหมดAFK" or "ปิดโหมดAFK", Duration = 2})
         end
     })
 
     MiscTab:Button({
-        Title = "Re-build GUI (ถ้าเมนูบั๊ก)",
+        Title = "Re-build GUI(รีui)",
         Callback = function() buildGUI() end
     })
 end
@@ -257,11 +257,3 @@ end)
 --------------------------------------------------
 buildGUI()
 print("Craig HUB Premium Loaded (by YNW Melly)")
-
--- การเล่นเสียงตอนรัน --
-buildGUI()
-local sound=Instance.new("Sound")
-sound.Name="JoeyHubMusic"; sound.SoundId="rbxassetid://137837473324419"
-sound.Volume=1; sound.Looped=false; sound.RollOffMaxDistance=10000; sound.Parent=workspace
-if not sound.IsLoaded then sound.Loaded:Wait() end
-sound:Play()
