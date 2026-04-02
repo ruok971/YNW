@@ -1,97 +1,86 @@
 local LocalUI = loadstring(game:HttpGet("https://pastebin.com/raw/PnQqq248"))()
 
-
 -- ⛩️ แท็บหลัก
 local Tab1 = CreateTab("หลัก", "⛩️")
 
-CreateToggled(Tab1, "ฟาม⭐", function()
-	print("เริ่มฟาม")
-	local TweenService = game:GetService("TweenService")
-local ProximityPromptService = game:GetService("ProximityPromptService")
-local RunService = game:GetService("RunService")
+_G.AutoFarm = false -- ตั้งค่าเริ่มต้นเป็นปิด
 
-local player = game.Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
+CreateToggled(Tab1, "ฟาม⭐", function(state) -- เพิ่ม 'state' เพื่อรับค่าจากปุ่ม
+    _G.AutoFarm = state -- กำหนดค่าตามปุ่มที่กด
+    
+    if _G.AutoFarm then
+        print("เริ่มฟาม: ON")
+        
+        -- ส่วนที่ 1: การเคลื่อนที่ (ลอย)
+        task.spawn(function()
+            local TweenService = game:GetService("TweenService")
+            local RunService = game:GetService("RunService")
+            local player = game.Players.LocalPlayer
+            
+            local targetPos = Vector3.new(-252, 3, 599)
+            local moveSpeed = 50
+            local isNoclipping = false
 
--- ตั้งค่าเป้าหมาย
-local targetPos = Vector3.new(-252, 3, 599)
-local moveSpeed = 50
-local moveInterval = 3 -- ลอยไปทุกๆ 3 วินาที
-local pressInterval = 5.7 -- กดปุ่มทุกๆ 5.7 วินาที
-local searchRadius = 1000 -- ระยะในการหาปุ่ม
-
-local isNoclipping = false
-
--- ฟังก์ชันสำหรับทะลุกำแพง
-local function toggleNoclip(state)
-    isNoclipping = state
-end
-
-RunService.Stepped:Connect(function()
-    if isNoclipping then
-        if character then
-            for _, part in pairs(character:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
+            -- ระบบ Noclip (ทำงานเฉพาะตอนเปิดฟาร์ม)
+            local noclipConn
+            noclipConn = RunService.Stepped:Connect(function()
+                if _G.AutoFarm and isNoclipping then
+                    local character = player.Character
+                    if character then
+                        for _, part in pairs(character:GetDescendants()) do
+                            if part:IsA("BasePart") then part.CanCollide = false end
+                        end
+                    end
+                else
+                    if not _G.AutoFarm then noclipConn:Disconnect() end
                 end
+            end)
+
+            while _G.AutoFarm do
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = character.HumanoidRootPart
+                    local distance = (hrp.Position - targetPos).Magnitude
+                    
+                    if distance > 2 then
+                        isNoclipping = true
+                        local duration = distance / moveSpeed
+                        local tween = TweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+                        tween:Play()
+                        tween.Completed:Wait()
+                        isNoclipping = false
+                    end
+                end
+                task.wait(3) -- ลอยมาเช็คทุก 3 วิ
             end
-        end
-    end
-end)
+        end)
 
--- ฟังก์ชันหลักในการเคลื่อนที่
-local function startMovement()
-    while true do
-        local distance = (hrp.Position - targetPos).Magnitude
-        
-        if distance > 1 then
-            local duration = distance / moveSpeed
-            
-            -- เริ่มเคลื่อนที่: เปิด Noclip
-            toggleNoclip(true)
-            
-            local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
-            local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
-            
-            tween:Play()
-            tween.Completed:Wait()
-            
-            -- ถึงเป้าหมาย: ปิด Noclip
-            toggleNoclip(false)
-        end
-        
-        task.wait(moveInterval)
-    end
-end
+        -- ส่วนที่ 2: การกดปุ่ม E ค้าง
+        task.spawn(function()
+            while _G.AutoFarm do
+                local player = game.Players.LocalPlayer
+                local character = player.Character
+                if character and character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = character.HumanoidRootPart
+                    local targetPos = Vector3.new(-252, 3, 599)
 
--- ฟังก์ชันการกด E ค้าง (ProximityPrompt)
-local function startAutoPress()
-    while true do
-        if (hrp.Position - targetPos).Magnitude < 10 then
-            for _, prompt in pairs(workspace:GetDescendants()) do
-                if prompt:IsA("ProximityPrompt") then
-                    local promptParent = prompt.Parent
-                    if promptParent:IsA("BasePart") then
-                        local distToPrompt = (hrp.Position - promptParent.Position).Magnitude
-                        
-                        if distToPrompt <= searchRadius then
-                            -- จำลองการกดค้าง (Hold)
-                            prompt:InputHoldBegin()
-                            task.wait(prompt.HoldDuration + 0.2)
-                            prompt:InputHoldEnd()
+                    if (hrp.Position - targetPos).Magnitude < 15 then
+                        for _, prompt in pairs(workspace:GetDescendants()) do
+                            if prompt:IsA("ProximityPrompt") then
+                                local promptParent = prompt.Parent
+                                if promptParent:IsA("BasePart") and (hrp.Position - promptParent.Position).Magnitude <= 1000 then
+                                    prompt:InputHoldBegin()
+                                    task.wait(prompt.HoldDuration + 0.2)
+                                    prompt:InputHoldEnd()
+                                end
+                            end
                         end
                     end
                 end
+                task.wait(5.7) -- วนลูปกดทุก 5.7 วิ
             end
-        end
-        task.wait(pressInterval)
+        end)
+    else
+        print("หยุดฟาม: OFF")
     end
-end
-
--- รันฟังก์ชันพร้อมกัน
-task.spawn(startMovement)
-task.spawn(startAutoPress)
-
-end -- ปิดฟังก์ชันหลัก
-end) -- ปิดวงเล็บของ Create
+end)
