@@ -185,6 +185,12 @@ local function buildGUI()
     })
 end
 
+MiscTab:Button({
+        Title = "เปลี่ยนสี ui",
+        Callback = "เปลี่ยนสีui"
+    })
+end
+
 --------------------------------------------------
 -- 4. Loops & Logic (ทำงานเบื้องหลัง)
 --------------------------------------------------
@@ -251,6 +257,34 @@ LocalPlayer.CharacterAdded:Connect(function()
     task.wait(1)
     if autoFarmActive then CreateAutoPromptUI() end -- ถ้าตาย ให้สร้างปุ่มแดงใหม่
 end)
+
+local function updateTheme(newColor)
+    guiColor1 = newColor
+    -- คำนวณสีที่ 2 ให้สว่างขึ้นเล็กน้อยเพื่อทำไล่เฉดสี (Gradient)
+    guiColor2 = Color3.new(
+        math.min(newColor.R + 0.15, 1),
+        math.min(newColor.G + 0.15, 1),
+        math.min(newColor.B + 0.15, 1)
+    )
+
+    -- อัปเดตปุ่มเปิดปิดหลัก
+    pcall(function()
+        W:EditOpenButton({
+            Title = "YNW Melly",
+            Icon = "monitor",
+            Color = ColorSequence.new(guiColor1, guiColor2),
+            StrokeThickness = 2,
+            CornerRadius = UDim.new(0, 16),
+            Enabled = true,
+            Draggable = true
+        })
+    end)
+    
+    -- (Option) ถ้า UI Library ของคุณรองรับการเปลี่ยนสี Theme หลัก
+    pcall(function()
+        W:SetTheme({AccentColor = guiColor1})
+    end)
+end
 
 --------------------------------------------------
 -- 5. Start Execution
