@@ -121,7 +121,7 @@ local function buildGUI()
     })
 
     W:EditOpenButton({
-        Title = "YNWHub",
+        Title = "Craig HUB💵",
         Icon = "monitor",
         CornerRadius = UDim.new(0, 16),
         StrokeThickness = 2,
@@ -257,3 +257,11 @@ end)
 --------------------------------------------------
 buildGUI()
 print("Craig HUB Premium Loaded (by YNW Melly)")
+
+-- การเล่นเสียงตอนรัน --
+buildGUI()
+local sound=Instance.new("Sound")
+sound.Name="JoeyHubMusic"; sound.SoundId="rbxassetid://137837473324419"
+sound.Volume=1; sound.Looped=false; sound.RollOffMaxDistance=10000; sound.Parent=workspace
+if not sound.IsLoaded then sound.Loaded:Wait() end
+sound:Play()
