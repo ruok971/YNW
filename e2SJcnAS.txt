@@ -516,145 +516,88 @@ end)
 -- ⛩️ แท็บหลัก
 local Tab1 = CreateTab("หลัก", "⛩️")
 
-CreateButton(Tab1, "ฟามเวล⭐", function()
-	print("เริ่มฟามเวล...")
-	-- ฟังก์ชันวาป
-	local locs = {
-		CFrame.new(1155, 7, -305), CFrame.new(194, 8, -398), CFrame.new(380, 5, -384),
-		CFrame.new(310, 3, -17), CFrame.new(513, 3, 66), CFrame.new(383, 6, -174)
-	}
-	-- สุ่มวาปไป 1 ที่ (ตัวอย่าง)
-	Player.Character.HumanoidRootPart.CFrame = locs[math.random(1, #locs)]
-	
-	-- กด ProximityPrompt ทุกที่
-	for _,v in pairs(game.Workspace:GetDescendants()) do
-		if v:IsA("ProximityPrompt") then
-			fireproximityprompt(v)
-		end
-	end
-end)
+CreateToggled(Tab1, "ฟาม⭐", function()
+	print("เริ่มฟาม")
+	local TweenService = game:GetService("TweenService")
+local ProximityPromptService = game:GetService("ProximityPromptService")
+local RunService = game:GetService("RunService")
 
-CreateToggle(Tab1, "วาปไปอาบน้ำ💧", false, function(state)
-	if state then
-		print("ไปอาบน้ำ + โดด")
-		_G.BathLoop = true
-		Player.Character.HumanoidRootPart.CFrame = CFrame.new(263, 7, -35)
-		task.spawn(function()
-			while _G.BathLoop do
-				Player.Character.Humanoid.Jump = true
-				task.wait(0.2)
-			end
-		end)
-	else
-		print("หยุดอาบน้ำ")
-		_G.BathLoop = false
-	end
-end)
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
 
--- [[ ฟังก์ชันสำหรับ Stamina ไร้ขีดจำกัด ]]
--- ใส่ไว้ในส่วนของตัวแปรควบคุมด้านบน
-local InfiniteStamina = false
+-- ตั้งค่าเป้าหมาย
+local targetPos = Vector3.new(-252, 3, 599)
+local moveSpeed = 50
+local moveInterval = 3 -- ลอยไปทุกๆ 3 วินาที
+local pressInterval = 5.7 -- กดปุ่มทุกๆ 5.7 วินาที
+local searchRadius = 1000 -- ระยะในการหาปุ่ม
 
--- [[ 1. ส่วนปุ่ม Toggle (แก้ไข Logic ใหม่) ]]
-CreateToggle(Tab1, "Stamina ไร้ขีดจำกัด ⚡", false, function(state)
-    _G.InfStamina = state -- ใช้ _G เพื่อให้มั่นใจว่าค่าถูกเปลี่ยนจริง
-    
-    if state then
-        task.spawn(function()
-            -- ใช้ pcall เพื่อป้องกันสคริปต์พังถ้าหาไฟล์ไม่เจอ
-            while _G.InfStamina do
-                local stats = Player:FindFirstChild("leaderstats")
-                if stats then
-                    local maxStam = stats:FindFirstChild("MaxStamina")
-                    local curStam = stats:FindFirstChild("Stamina")
-                    
-                    if maxStam then maxStam.Value = 999999 end
-                    if curStam then curStam.Value = 999999 end
-                end
-                task.wait(0.1)
-            end
-            
-            -- เมื่อปิด (state = false) ให้คืนค่าปกติ
-            local stats = Player:FindFirstChild("leaderstats")
-            if stats then
-                if stats:FindFirstChild("MaxStamina") then stats.MaxStamina.Value = 100 end
-                if stats:FindFirstChild("Stamina") then stats.Stamina.Value = 100 end
-            end
-        end)
-    end
-end)
+local isNoclipping = false
 
+-- ฟังก์ชันสำหรับทะลุกำแพง
+local function toggleNoclip(state)
+    isNoclipping = state
+end
 
-CreateToggle(Tab1, "วาปไปฮีลเลือด🩸", false, function(state)
-	if state then
-		Player.Character.HumanoidRootPart.CFrame = CFrame.new(248, 7, -15)
-	else
-		print("กลับที่เดิม (ต้องใส่พิกัดเอาเอง)")
-	end
-end)
-
-CreateToggle(Tab1, "ออโต้ฮีล (เลือด20)🩸", false, function(state)
-	_G.AutoHeal = state
-	if state then
-		task.spawn(function()
-			while _G.AutoHeal do
-				if Player.Character.Humanoid.Health <= 20 then
-					Player.Character.HumanoidRootPart.CFrame = CFrame.new(248, 7, -15)
-					repeat task.wait(0.5) until Player.Character.Humanoid.Health >= 100 or not _G.AutoHeal
-				end
-				task.wait(1)
-			end
-		end)
-	end
-end)
-
-CreateToggle(Tab1, "วาปไปขี้💩", false, function(state)
-	if state then
-		_G.PooLoop = true
-		Player.Character.HumanoidRootPart.CFrame = CFrame.new(263, 7, -51)
-		task.spawn(function()
-			while _G.PooLoop do
-				Player.Character.Humanoid.Jump = true
-				task.wait(0.2)
-			end
-		end)
-	else
-		_G.PooLoop = false
-	end
-end)
-
-CreateButton(Tab1, "วาปไปเอาข้าว🍜", function()
-	Player.Character.HumanoidRootPart.CFrame = CFrame.new(90, 3, -91)
-end)
-
--- ⚙️ แท็บตั้งค่า (ตัวอย่างเพิ่มเติม)
-local Tab2 = CreateTab("ตั้งค่า", "⚙️")
-CreateButton(Tab2, "Rejoin Game", function()
-	game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
-end) -- กว่าทำได้ถ้าไม่อีกกูท้อ
-
-local Tab3 = CreateTab("ลดแล็คกับesp", "🦾")
-CreateToggle(Tab3, "ลดแล็ค🥀", false, function(state)
-    FPSBoosterActive = state
-    OptimizeGraphics(state)
-    
-    if state then
-        task.spawn(function()
-            while FPSBoosterActive do
-                for _, v in pairs(game.Workspace:GetDescendants()) do
-                    if not FPSBoosterActive then break end 
-                    if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
-                        v.Enabled = false
-                    end
-                end
-                task.wait(10)
-            end
-        end)
-    else
-        for _, v in pairs(game.Workspace:GetDescendants()) do
-            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") then
-                v.Enabled = true
+RunService.Stepped:Connect(function()
+    if isNoclipping then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
             end
         end
     end
-end) -- ปิด CreateToggle ที่พี่สร้างไว้ (ใส่มาให้แล้ว)
+end)
+
+-- ฟังก์ชันหลักในการเคลื่อนที่
+local function startMovement()
+    while true do
+        local distance = (hrp.Position - targetPos).Magnitude
+        local duration = distance / moveSpeed
+        
+        -- เริ่มเคลื่อนที่: เปิด Noclip
+        toggleNoclip(true)
+        
+        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Linear)
+        local tween = TweenService:Create(hrp, tweenInfo, {CFrame = CFrame.new(targetPos)})
+        
+        tween:Play()
+        tween.Completed:Wait()
+        
+        -- ถึงเป้าหมาย: ปิด Noclip
+        toggleNoclip(false)
+        
+        -- รอ 3 วินาทีตามที่กำหนดก่อนจะเริ่มรอบใหม่ (ถ้าต้องการให้ลอยมาที่นี่ทุก 3 วิ)
+        task.wait(moveInterval)
+    end
+end
+
+-- ฟังก์ชันการกด E ค้าง (ProximityPrompt)
+local function startAutoPress()
+    while true do
+        -- ตรวจสอบว่าอยู่ใกล้จุดเป้าหมายหรือไม่
+        if (hrp.Position - targetPos).Magnitude < 5 then
+            for _, prompt in pairs(workspace:GetDescendants()) do
+                if prompt:IsA("ProximityPrompt") then
+                    local promptPos = prompt.Parent:IsA("BasePart") and prompt.Parent.Position or hrp.Position
+                    local distToPrompt = (hrp.Position - promptPos).Magnitude
+                    
+                    if distToPrompt <= searchRadius then
+                        -- จำลองการกดค้าง (Hold)
+                        prompt:InputHoldBegin()
+                        task.wait(prompt.HoldDuration + 0.2) -- รอกดจนเสร็จตามเวลาที่ปุ่มกำหนด
+                        prompt:InputHoldEnd()
+                    end
+                end
+            end
+        end
+        task.wait(pressInterval)
+    end
+end
+
+-- รันฟังก์ชันพร้อมกัน
+task.spawn(startMovement)
+task.spawn(startAutoPress)
+end
+end)
