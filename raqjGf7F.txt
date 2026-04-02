@@ -1,0 +1,259 @@
+--------------------------------------------------
+-- 1. Setup & Config
+--------------------------------------------------
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Variables สำหรับควบคุมสถานะ
+local autoFarmActive = false
+local afkActive = false
+local tpActive = false
+local currentPromptGui = nil
+local guiColor1 = Color3.fromHex("#30ff6a")
+local guiColor2 = Color3.fromHex("#00bdff")
+
+--------------------------------------------------
+-- 2. Functions ระบบเสริม
+--------------------------------------------------
+
+-- ฟังก์ชัน NoClip (ทะลุกำแพง)
+local function SetNoClip(state)
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not state
+            end
+        end
+    end
+end
+
+-- ฟังก์ชันสร้างปุ่ม Auto Hold (ปุ่มวงกลมแดงในตำนาน)
+local function CreateAutoPromptUI()
+    if currentPromptGui then currentPromptGui:Destroy() end
+    
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoPromptGui_BOXHUB"
+    screenGui.Parent = PGui
+    screenGui.ResetOnSpawn = false
+    currentPromptGui = screenGui
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 80, 0, 80)
+    button.Position = UDim2.new(0.5, -40, 0.8, -40)
+    button.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+    button.Text = "OFF"
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.Parent = screenGui
+    
+    local uiCorner = Instance.new("UICorner")
+    uiCorner.CornerRadius = UDim.new(1, 0)
+    uiCorner.Parent = button
+
+    local holdActive = false
+    button.MouseButton1Click:Connect(function()
+        holdActive = not holdActive
+        button.Text = holdActive and "เปิดอยู่" or "กดเพื่อเปิด"
+        button.BackgroundColor3 = holdActive and Color3.fromRGB(60, 255, 60) or Color3.fromRGB(255, 60, 60)
+    end)
+
+    -- ระบบ Draggable (ลากปุ่มได้)
+    local dragging, dragInput, dragStart, startPos
+    button.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; dragStart = input.Position; startPos = button.Position
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+    end)
+
+    -- Loop สำหรับระบบ Auto Hold
+    task.spawn(function()
+        while autoFarmActive and screenGui.Parent do
+            if holdActive then
+                local char = LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    for _, prompt in pairs(workspace:GetDescendants()) do
+                        if prompt:IsA("ProximityPrompt") and prompt.Enabled and prompt.Parent:IsA("BasePart") then
+                            local dist = (hrp.Position - prompt.Parent.Position).Magnitude
+                            if dist <= prompt.MaxActivationDistance then
+                                prompt:InputHoldBegin()
+                                repeat task.wait(0.1) until not holdActive or not prompt or not prompt.Parent or (hrp.Position - prompt.Parent.Position).Magnitude > prompt.MaxActivationDistance
+                                prompt:InputHoldEnd()
+                            end
+                        end
+                    end
+                end
+            end
+            task.wait(0.2)
+        end
+    end)
+end
+
+--------------------------------------------------
+-- 3. Build Main UI
+--------------------------------------------------
+local function buildGUI()
+    -- ลบ GUI เก่า (ถ้ามี)
+    for _, g in ipairs(PGui:GetChildren()) do
+        if g.Name == "WindUI" or g.Name == "AutoPromptGui_BOXHUB" then pcall(function() g:Destroy() end) end
+    end
+
+    local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+    local W = WindUI:CreateWindow({
+        Title = "Craig HUB💵",
+        Icon = "bird",
+        Author = "by YNW Melly",
+        Folder = "CraigHubV6"
+    })
+
+    W:EditOpenButton({
+        Title = "YNWHub",
+        Icon = "monitor",
+        CornerRadius = UDim.new(0, 16),
+        StrokeThickness = 2,
+        Color = ColorSequence.new(guiColor1, guiColor2),
+        Enabled = true,
+        Draggable = true
+    })
+
+    W:Tag({Title = "v1.6 Premium", Icon = "bird", Color = Color3.fromHex("#30ff6a"), Radius = 13})
+
+    -- สร้าง Tab
+    local MainTab = W:Tab({ Title = "ฟาร์ม & เคลื่อนที่", Icon = "rbxassetid://10734949856" })
+    local MiscTab = W:Tab({ Title = "ฟังก์ชันเสริม", Icon = "rbxassetid://10734949856" })
+
+    ----------------------------------------------
+    -- ส่วนของ MainTab (Farm)
+    ----------------------------------------------
+    
+    -- ปุ่มรันสคริปต์ภายนอก (Farm v 1.6)
+    MainTab:Button({
+        Title = "Farm v 1.6 (Pastebin)",
+        Callback = function()
+            WindUI:Notify({Title = "Craig HUB", Content = "กำลังรันสคริปต์ภายนอก...", Duration = 2})
+            pcall(function() loadstring(game:HttpGet("https://pastebin.com/raw/NpttDSCJ"))() end)
+        end
+    })
+
+    -- Toggle เปิดระบบฟาร์มก่อสร้าง (บิน + ปุ่มแดง)
+    MainTab:Toggle({
+        Title = "เปิดระบบฟาร์มก่อสร้าง (Auto Fly & Hold)",
+        Value = false,
+        Callback = function(v)
+            autoFarmActive = v
+            if v then
+                CreateAutoPromptUI()
+                WindUI:Notify({Title = "Craig HUB", Content = "ระบบฟาร์มเริ่มทำงาน", Duration = 2})
+            else
+                tpActive = false
+                if currentPromptGui then currentPromptGui:Destroy() end
+                SetNoClip(false)
+            end
+        end
+    })
+
+    ----------------------------------------------
+    -- ส่วนของ MiscTab (AFK & Tools)
+    ----------------------------------------------
+
+    MiscTab:Toggle({
+        Title = "Action AFK (Jump 15 min)",
+        Value = false,
+        Callback = function(v)
+            afkActive = v
+            WindUI:Notify({Title = "AFK", Content = v and "เปิดโหมดกันหลุด" or "ปิดโหมดกันหลุด", Duration = 2})
+        end
+    })
+
+    MiscTab:Button({
+        Title = "Re-build GUI (ถ้าเมนูบั๊ก)",
+        Callback = function() buildGUI() end
+    })
+end
+
+--------------------------------------------------
+-- 4. Loops & Logic (ทำงานเบื้องหลัง)
+--------------------------------------------------
+
+-- ระบบ AFK Jump
+task.spawn(function()
+    while true do
+        if afkActive then
+            local char = LocalPlayer.Character
+            local hum = char and char:FindFirstChild("Humanoid")
+            if hum then hum.Jump = true; print("Craig HUB: Anti-AFK Jumped!") end
+        end
+        task.wait(900) -- 15 นาที
+    end
+end)
+
+-- ระบบบินไปจุดฟาร์มก่อสร้าง (สุ่มจุด)
+task.spawn(function()
+    while true do
+        if autoFarmActive then
+            local folder = workspace:FindFirstChild("ก่อสร้าง")
+            local targets = {}
+
+            if folder then
+                for _, item in pairs(folder:GetChildren()) do table.insert(targets, item) end
+            end
+
+            if #targets == 0 then
+                for _, p in pairs(workspace:GetDescendants()) do
+                    if p:IsA("ProximityPrompt") then table.insert(targets, p.Parent) end
+                end
+            end
+
+            if #targets > 0 then
+                local target = targets[math.random(1, #targets)]
+                local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                
+                if hrp and target and target:IsA("BasePart") then
+                    tpActive = true
+                    while autoFarmActive and (hrp.Position - target.Position).Magnitude > 5 do
+                        hrp.Velocity = (target.Position - hrp.Position).Unit * 110 -- ความเร็วซิ่งๆ
+                        SetNoClip(true)
+                        task.wait()
+                        if not hrp.Parent then break end
+                    end
+                    hrp.Velocity = Vector3.zero
+                    hrp.CFrame = target.CFrame * CFrame.new(0, 3, 0)
+                    tpActive = false
+                    SetNoClip(false)
+                    task.wait(1) -- รอให้ปุ่มแดงกดก่อนจะสุ่มที่ใหม่
+                end
+            end
+        end
+        task.wait(0.5)
+    end
+end)
+
+-- ระบบรักษาสถานะ NoClip และเช็คการตาย
+RunService.Stepped:Connect(function()
+    if tpActive then SetNoClip(true) end
+end)
+
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)
+    if autoFarmActive then CreateAutoPromptUI() end -- ถ้าตาย ให้สร้างปุ่มแดงใหม่
+end)
+
+--------------------------------------------------
+-- 5. Start Execution
+--------------------------------------------------
+buildGUI()
+print("Craig HUB Premium Loaded (by YNW Melly)")
